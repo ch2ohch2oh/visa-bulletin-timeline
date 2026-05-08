@@ -23,6 +23,12 @@ def parse_cutoff(value: str, bulletin_date: pd.Timestamp):
     return pd.to_datetime(v, format="%d%b%y", errors="coerce")
 
 
+def clean_value(value: object) -> str:
+    if pd.isna(value):
+        return ""
+    return str(value).strip().upper()
+
+
 def main() -> None:
     df = pd.read_csv(INPUT_CSV)
     df = df[(df["preference_category"].isin(CATEGORY_MAP)) & (df["table_type"].isin(TABLE_TYPES))].copy()
@@ -49,11 +55,13 @@ def main() -> None:
                             bulletin_date.strftime("%Y-%m-%d"),
                             round(float(months_to_current), 3),
                             cutoff_date.strftime("%Y-%m-%d"),
+                            clean_value(raw_value),
                         ]
-                        for bulletin_date, months_to_current, cutoff_date in zip(
+                        for bulletin_date, months_to_current, cutoff_date, raw_value in zip(
                             part["bulletin_date"],
                             part["months_to_current"],
                             part["cutoff_date"],
+                            part["china_mainland_born"],
                         )
                     ],
                 }

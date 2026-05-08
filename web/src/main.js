@@ -2,27 +2,82 @@ import * as d3 from 'd3';
 import './styles.css';
 import data from './data/china_series.json';
 
+const categories = ['EB-1', 'EB-2', 'EB-3'];
+const typeStyle = {
+  final_action: { name: 'final action date', color: '#334155', dash: null },
+  dates_for_filing: { name: 'filing date', color: '#2563eb', dash: '5,4' }
+};
 const parseDate = d3.utcParse('%Y-%m-%d');
 const prepared = data.map((s) => ({
   ...s,
-  points: s.data.map(([bulletinDate, monthsToCurrent, cutoffDate]) => ({
+  points: s.data.map(([bulletinDate, monthsToCurrent, cutoffDate, rawValue]) => ({
     x: parseDate(bulletinDate),
     monthsToCurrent: Number(monthsToCurrent),
-    cutoffDate: parseDate(cutoffDate)
+    cutoffDate: parseDate(cutoffDate),
+    rawValue
   }))
 }));
 const latestBulletinDate = d3.max(prepared.flatMap((s) => s.points), (d) => d.x);
 const latestBulletinLabel = d3.utcFormat('%B %Y')(latestBulletinDate);
+const readableDate = d3.utcFormat('%b %-d, %Y');
 let viewMode = 'wait';
+
+function formatLatestValue(point) {
+  if (!point) return 'Unavailable';
+  if (point.rawValue === 'C') return 'Current';
+  if (point.rawValue === 'U') return 'Unavailable';
+  return readableDate(point.cutoffDate);
+}
+
+const latestRows = categories.map((category) => {
+  const finalAction = prepared
+    .find((series) => series.category === category && series.table_type === 'final_action')
+    ?.points.find((point) => +point.x === +latestBulletinDate);
+  const filing = prepared
+    .find((series) => series.category === category && series.table_type === 'dates_for_filing')
+    ?.points.find((point) => +point.x === +latestBulletinDate);
+
+  return {
+    category,
+    finalAction: formatLatestValue(finalAction),
+    filing: formatLatestValue(filing)
+  };
+});
 
 const app = document.querySelector('#app');
 app.innerHTML = `
   <div class="min-h-screen bg-white px-6 py-8 sm:px-10 sm:py-12 lg:px-16">
     <div class="mx-auto max-w-6xl px-3 py-4 sm:px-6 sm:py-7">
       <div class="mb-8">
-        <h1 class="text-2xl font-medium tracking-tight text-neutral-900">China EB Visa Bulletin Wait Time</h1>
+        <h1 class="text-2xl font-medium tracking-tight text-neutral-900">China EB Green Card Wait Time</h1>
         <p class="mt-2 max-w-3xl text-sm leading-6 text-neutral-600">Monthly wait-time trends for EB-1, EB-2, and EB-3 China employment-based categories.</p>
       </div>
+      <section class="mx-auto mb-8 max-w-4xl">
+        <div class="mb-3 flex flex-col gap-1 text-center">
+          <h2 class="text-sm font-medium text-neutral-900">Latest bulletin snapshot</h2>
+          <p class="text-sm text-neutral-500">${latestBulletinLabel}</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="mx-auto w-auto border-collapse text-left text-sm">
+            <thead class="border-b border-neutral-200 text-neutral-500">
+              <tr>
+                <th class="py-2 pr-6 font-medium">Category</th>
+                <th class="py-2 pr-6 font-medium">Final action date</th>
+                <th class="py-2 font-medium">Filing date</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-neutral-100 text-neutral-800">
+              ${latestRows.map((row) => `
+                <tr>
+                  <td class="py-2.5 pr-6 font-medium text-neutral-900">${row.category}</td>
+                  <td class="py-2.5 pr-6">${row.finalAction}</td>
+                  <td class="py-2.5">${row.filing}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </section>
       <div class="relative bg-white py-6 sm:py-8">
         <div class="mb-6 border-b border-neutral-200 pb-5">
           <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -30,36 +85,36 @@ app.innerHTML = `
               <div id="chart-title" class="text-sm font-medium text-neutral-900">Months to current</div>
               <p id="chart-description" class="mt-1 max-w-3xl text-sm leading-6 text-neutral-600">Shows how many months each cutoff date trails its bulletin month. Lower is better; zero means the category is current.</p>
             </div>
-          <div class="flex shrink-0 flex-col gap-4 text-sm text-neutral-700 sm:items-end">
-            <div class="inline-flex rounded-md border border-neutral-200 p-0.5 text-sm">
-              <button data-view="wait" class="view-toggle rounded px-3 py-1.5 text-neutral-950">Wait time</button>
-              <button data-view="cutoff" class="view-toggle rounded px-3 py-1.5 text-neutral-500">Cutoff date</button>
-            </div>
+            <div class="flex shrink-0 flex-col gap-4 text-sm text-neutral-700 sm:items-end">
+              <div class="inline-flex rounded-md border border-neutral-200 p-0.5 text-sm">
+                <button data-view="wait" class="view-toggle rounded px-3 py-1.5 text-neutral-950">Wait time</button>
+                <button data-view="cutoff" class="view-toggle rounded px-3 py-1.5 text-neutral-500">Cutoff date</button>
+              </div>
               <div class="flex items-center gap-5">
                 <div class="flex items-center gap-2">
                   <span class="h-px w-8 bg-slate-700"></span>
                   <span>final action date</span>
                 </div>
-              <div class="flex items-center gap-2">
-                <span class="h-px w-8 border-t border-dashed border-blue-600"></span>
-                <span>filing date</span>
+                <div class="flex items-center gap-2">
+                  <span class="h-px w-8 border-t border-dashed border-blue-600"></span>
+                  <span>filing date</span>
+                </div>
               </div>
             </div>
           </div>
-          </div>
-          <details class="mt-4 text-sm leading-6 text-neutral-600">
-            <summary class="cursor-pointer select-none font-medium text-neutral-700">Terminology</summary>
-            <div class="mt-3 grid max-w-3xl gap-2">
-              <div><span class="font-medium text-neutral-900">EB-1:</span> extraordinary ability, outstanding professor/researcher, and multinational executive/manager cases.</div>
-              <div><span class="font-medium text-neutral-900">EB-2:</span> advanced degree professionals and people with exceptional ability.</div>
-              <div><span class="font-medium text-neutral-900">EB-3:</span> skilled workers, professionals, and other workers.</div>
-              <div><span class="font-medium text-neutral-900">Final action date:</span> when a visa can be finally issued.</div>
-              <div><span class="font-medium text-neutral-900">Filing date:</span> when applicants may be able to submit paperwork earlier, depending on USCIS monthly guidance.</div>
-            </div>
-          </details>
         </div>
         <div id="chart" class="w-full"></div>
       </div>
+      <details class="mt-6 max-w-4xl text-sm leading-6 text-neutral-600">
+        <summary class="cursor-pointer select-none font-medium text-neutral-700">Terminology</summary>
+        <div class="mx-auto mt-4 max-w-3xl space-y-2">
+          <div><span class="font-medium text-neutral-900">EB-1:</span> extraordinary ability, outstanding professor/researcher, and multinational executive/manager cases.</div>
+          <div><span class="font-medium text-neutral-900">EB-2:</span> advanced degree professionals and people with exceptional ability.</div>
+          <div><span class="font-medium text-neutral-900">EB-3:</span> skilled workers, professionals, and other workers.</div>
+          <div><span class="font-medium text-neutral-900">Final action date:</span> when a green card can be finally issued.</div>
+          <div><span class="font-medium text-neutral-900">Filing date:</span> when applicants may be able to submit paperwork earlier, depending on USCIS monthly guidance.</div>
+        </div>
+      </details>
       <footer class="mt-8 border-t border-neutral-200 pt-5 text-sm leading-6 text-neutral-500">
         <p>Data source: U.S. Department of State Visa Bulletin monthly employment-based preference tables. Latest bulletin in this dataset: ${latestBulletinLabel}.</p>
         <p class="mt-2">Methodology: for each bulletin month, months to current is computed as bulletin month minus the listed China cutoff date. When a category is current, its cutoff date is treated as that bulletin month.</p>
@@ -67,12 +122,6 @@ app.innerHTML = `
     </div>
   </div>
 `;
-
-const categories = ['EB-1', 'EB-2', 'EB-3'];
-const typeStyle = {
-  final_action: { name: 'final action date', color: '#334155', dash: null },
-  dates_for_filing: { name: 'filing date', color: '#2563eb', dash: '5,4' }
-};
 
 function updateViewControls() {
   const title = document.getElementById('chart-title');
