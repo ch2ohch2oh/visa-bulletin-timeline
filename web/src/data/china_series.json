@@ -2,7 +2,7 @@
   {
     "category": "EB-1",
     "table_type": "final_action",
-    "label": "action date",
+    "label": "final action date",
     "data": [
       [
         "2016-05-01",
@@ -1226,7 +1226,7 @@
   {
     "category": "EB-2",
     "table_type": "final_action",
-    "label": "action date",
+    "label": "final action date",
     "data": [
       [
         "2016-05-01",
@@ -2450,7 +2450,7 @@
   {
     "category": "EB-3",
     "table_type": "final_action",
-    "label": "action date",
+    "label": "final action date",
     "data": [
       [
         "2016-05-01",

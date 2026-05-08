@@ -9,7 +9,7 @@ INPUT_CSV = Path("data/processed/employment_based_dates.csv")
 OUTPUT_JSON = Path("web/src/data/china_series.json")
 CATEGORY_MAP = {"1st": "EB-1", "2nd": "EB-2", "3rd": "EB-3"}
 TABLE_TYPES = ["final_action", "dates_for_filing"]
-LABELS = {"final_action": "action date", "dates_for_filing": "filing date"}
+LABELS = {"final_action": "final action date", "dates_for_filing": "filing date"}
 
 
 def parse_cutoff(value: str, bulletin_date: pd.Timestamp):

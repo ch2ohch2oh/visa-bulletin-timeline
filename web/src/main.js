@@ -24,27 +24,39 @@ app.innerHTML = `
         <p class="mt-2 max-w-3xl text-sm leading-6 text-neutral-600">Monthly wait-time trends for EB-1, EB-2, and EB-3 China employment-based categories.</p>
       </div>
       <div class="relative bg-white py-6 sm:py-8">
-        <div class="mb-6 flex flex-col gap-4 border-b border-neutral-200 pb-5 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div id="chart-title" class="text-sm font-medium text-neutral-900">Months to current</div>
-            <p id="chart-description" class="mt-1 max-w-3xl text-sm leading-6 text-neutral-600">Shows how many months each cutoff date trails its bulletin month. Lower is better; zero means the category is current.</p>
-          </div>
+        <div class="mb-6 border-b border-neutral-200 pb-5">
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div id="chart-title" class="text-sm font-medium text-neutral-900">Months to current</div>
+              <p id="chart-description" class="mt-1 max-w-3xl text-sm leading-6 text-neutral-600">Shows how many months each cutoff date trails its bulletin month. Lower is better; zero means the category is current.</p>
+            </div>
           <div class="flex shrink-0 flex-col gap-4 text-sm text-neutral-700 sm:items-end">
             <div class="inline-flex rounded-md border border-neutral-200 p-0.5 text-sm">
               <button data-view="wait" class="view-toggle rounded px-3 py-1.5 text-neutral-950">Wait time</button>
               <button data-view="cutoff" class="view-toggle rounded px-3 py-1.5 text-neutral-500">Cutoff date</button>
             </div>
-            <div class="flex items-center gap-5">
-              <div class="flex items-center gap-2">
-                <span class="h-px w-8 bg-slate-700"></span>
-                <span>action date</span>
-              </div>
+              <div class="flex items-center gap-5">
+                <div class="flex items-center gap-2">
+                  <span class="h-px w-8 bg-slate-700"></span>
+                  <span>final action date</span>
+                </div>
               <div class="flex items-center gap-2">
                 <span class="h-px w-8 border-t border-dashed border-blue-600"></span>
                 <span>filing date</span>
               </div>
             </div>
           </div>
+          </div>
+          <details class="mt-4 text-sm leading-6 text-neutral-600">
+            <summary class="cursor-pointer select-none font-medium text-neutral-700">Terminology</summary>
+            <div class="mt-3 grid max-w-3xl gap-2">
+              <div><span class="font-medium text-neutral-900">EB-1:</span> extraordinary ability, outstanding professor/researcher, and multinational executive/manager cases.</div>
+              <div><span class="font-medium text-neutral-900">EB-2:</span> advanced degree professionals and people with exceptional ability.</div>
+              <div><span class="font-medium text-neutral-900">EB-3:</span> skilled workers, professionals, and other workers.</div>
+              <div><span class="font-medium text-neutral-900">Final action date:</span> when a visa can be finally issued.</div>
+              <div><span class="font-medium text-neutral-900">Filing date:</span> when applicants may be able to submit paperwork earlier, depending on USCIS monthly guidance.</div>
+            </div>
+          </details>
         </div>
         <div id="chart" class="w-full"></div>
       </div>
@@ -58,7 +70,7 @@ app.innerHTML = `
 
 const categories = ['EB-1', 'EB-2', 'EB-3'];
 const typeStyle = {
-  final_action: { name: 'action date', color: '#334155', dash: null },
+  final_action: { name: 'final action date', color: '#334155', dash: null },
   dates_for_filing: { name: 'filing date', color: '#2563eb', dash: '5,4' }
 };
 
