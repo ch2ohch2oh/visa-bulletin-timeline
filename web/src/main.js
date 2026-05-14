@@ -22,6 +22,26 @@ const latestBulletinLabel = d3.utcFormat('%B %Y')(latestBulletinDate);
 const readableDate = d3.utcFormat('%b %-d, %Y');
 let viewMode = 'wait';
 
+function formatChange(point, previousPoint) {
+  if (!point || !previousPoint) return 'n/a';
+  if (point.rawValue === 'U' || previousPoint.rawValue === 'U') return 'n/a';
+  if (point.rawValue === 'C' && previousPoint.rawValue === 'C') return 'current';
+  if (point.rawValue === 'C') return 'to current';
+  if (previousPoint.rawValue === 'C') return 'from current';
+
+  const deltaDays = Math.round((point.cutoffDate - previousPoint.cutoffDate) / 86400000);
+  if (deltaDays === 0) return 'no change';
+  if (deltaDays > 0) return `forward ${deltaDays}d`;
+  return `backward ${Math.abs(deltaDays)}d`;
+}
+
+function changeClass(change) {
+  if (change.startsWith('forward')) return 'text-emerald-700';
+  if (change.startsWith('backward')) return 'text-rose-700';
+  if (change === 'no change') return 'text-neutral-500';
+  return 'text-slate-500';
+}
+
 function formatLatestValue(point) {
   if (!point) return 'Unavailable';
   if (point.rawValue === 'C') return 'Current';
@@ -29,18 +49,31 @@ function formatLatestValue(point) {
   return readableDate(point.cutoffDate);
 }
 
+function findLatestAndPreviousPoint(category, tableType) {
+  const series = prepared.find((entry) => entry.category === category && entry.table_type === tableType);
+  if (!series) return { latest: null, previous: null };
+
+  const latestIndex = series.points.findIndex((point) => +point.x === +latestBulletinDate);
+  if (latestIndex === -1) return { latest: null, previous: null };
+
+  return {
+    latest: series.points[latestIndex],
+    previous: latestIndex > 0 ? series.points[latestIndex - 1] : null
+  };
+}
+
 const latestRows = categories.map((category) => {
-  const finalAction = prepared
-    .find((series) => series.category === category && series.table_type === 'final_action')
-    ?.points.find((point) => +point.x === +latestBulletinDate);
-  const filing = prepared
-    .find((series) => series.category === category && series.table_type === 'dates_for_filing')
-    ?.points.find((point) => +point.x === +latestBulletinDate);
+  const finalAction = findLatestAndPreviousPoint(category, 'final_action');
+  const filing = findLatestAndPreviousPoint(category, 'dates_for_filing');
 
   return {
     category,
-    finalAction: formatLatestValue(finalAction),
-    filing: formatLatestValue(filing)
+    finalAction: formatLatestValue(finalAction.latest),
+    finalActionChange: formatChange(finalAction.latest, finalAction.previous),
+    finalActionChangeClass: changeClass(formatChange(finalAction.latest, finalAction.previous)),
+    filing: formatLatestValue(filing.latest),
+    filingChange: formatChange(filing.latest, filing.previous),
+    filingChangeClass: changeClass(formatChange(filing.latest, filing.previous))
   };
 });
 
@@ -70,8 +103,14 @@ app.innerHTML = `
               ${latestRows.map((row) => `
                 <tr>
                   <td class="py-2.5 pr-6 font-medium text-neutral-900">${row.category}</td>
-                  <td class="py-2.5 pr-6">${row.finalAction}</td>
-                  <td class="py-2.5">${row.filing}</td>
+                  <td class="py-2.5 pr-6">
+                    <div>${row.finalAction}</div>
+                    <div class="mt-0.5 text-xs ${row.finalActionChangeClass}">${row.finalActionChange}</div>
+                  </td>
+                  <td class="py-2.5">
+                    <div>${row.filing}</div>
+                    <div class="mt-0.5 text-xs ${row.filingChangeClass}">${row.filingChange}</div>
+                  </td>
                 </tr>
               `).join('')}
             </tbody>
