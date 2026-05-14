@@ -1,3 +1,5 @@
+update: update-data
+
 update-data:
     UV_CACHE_DIR=.uv-cache uv run python scripts/download_visa_bulletins.py
     UV_CACHE_DIR=.uv-cache uv run python scripts/parse_eb_tables.py
