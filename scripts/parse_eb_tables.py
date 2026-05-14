@@ -14,6 +14,13 @@ OUT_JSON = Path("data/processed/employment_based_dates.json")
 
 SECTION_A = "FINAL ACTION DATES FOR EMPLOYMENT-BASED PREFERENCE CASES"
 SECTION_B = "DATES FOR FILING OF EMPLOYMENT-BASED VISA APPLICATIONS"
+SECTION_LABELS = {
+    "final_action": SECTION_A,
+    "dates_for_filing": SECTION_B,
+}
+EXPECTED_TABLE_TYPES = set(SECTION_LABELS)
+MIN_EXPECTED_ROWS_PER_TABLE = 3
+REQUIRED_COLUMNS = {"all_chargeability_areas_except_those_listed", "china_mainland_born"}
 
 
 def normalize_text(s: str) -> str:
@@ -25,7 +32,7 @@ def normalize_text(s: str) -> str:
 def month_year_from_filename(name: str) -> tuple[str, str]:
     m = re.search(r"visa-bulletin-for-([a-z]+)-(\d{4})\.html$", name)
     if not m:
-        return "", ""
+        raise ValueError(f"Could not parse bulletin month/year from {name}")
     return m.group(1).capitalize(), m.group(2)
 
 
@@ -54,51 +61,76 @@ def find_nearest_label(table) -> str | None:
     return None
 
 
+def normalize_column_name(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
+
+
+def parse_employment_table(path: Path, table, label: str, month: str, year: str) -> list[dict]:
+    rows = table.find_all("tr")
+    if len(rows) < 2:
+        return []
+
+    header_cells = rows[0].find_all(["td", "th"])
+    headers = [clean_cell(c) for c in header_cells]
+    if len(headers) < 2 or "Employment" not in headers[0]:
+        return []
+
+    column_names = [normalize_column_name(col) for col in headers[1:]]
+    missing_columns = REQUIRED_COLUMNS - set(column_names)
+    if missing_columns:
+        raise RuntimeError(
+            f"{path}: {label} table missing required columns: {', '.join(sorted(missing_columns))}"
+        )
+
+    parsed_rows: list[dict] = []
+    for tr in rows[1:]:
+        cells = tr.find_all(["td", "th"])
+        values = [clean_cell(c) for c in cells]
+        if len(values) < 2:
+            continue
+
+        row = {
+            "source_file": str(path),
+            "bulletin_year": year,
+            "bulletin_month": month,
+            "table_type": label,
+            "preference_category": values[0],
+        }
+
+        for index, key in enumerate(column_names, start=1):
+            if index >= len(values):
+                continue
+            row[key] = values[index]
+
+        parsed_rows.append(row)
+
+    if len(parsed_rows) < MIN_EXPECTED_ROWS_PER_TABLE:
+        raise RuntimeError(f"{path}: {label} table parsed too few rows: {len(parsed_rows)}")
+
+    return parsed_rows
+
+
 def parse_file(path: Path) -> List[dict]:
     html = path.read_text(encoding="utf-8", errors="ignore")
     soup = BeautifulSoup(html, "lxml")
     month, year = month_year_from_filename(path.name)
 
     out: List[dict] = []
+    seen_labels: set[str] = set()
     for table in soup.find_all("table"):
         label = find_nearest_label(table)
         if not label:
             continue
-
-        rows = table.find_all("tr")
-        if len(rows) < 2:
+        rows = parse_employment_table(path, table, label, month, year)
+        if not rows:
             continue
+        seen_labels.add(label)
+        out.extend(rows)
 
-        header_cells = rows[0].find_all(["td", "th"])
-        headers = [clean_cell(c) for c in header_cells]
-        if len(headers) < 2:
-            continue
-
-        # Validate this is an employment-based table by first header cell.
-        if "Employment" not in headers[0]:
-            continue
-
-        for tr in rows[1:]:
-            cells = tr.find_all(["td", "th"])
-            values = [clean_cell(c) for c in cells]
-            if len(values) < 2:
-                continue
-
-            row = {
-                "source_file": str(path),
-                "bulletin_year": year,
-                "bulletin_month": month,
-                "table_type": label,
-                "preference_category": values[0],
-            }
-
-            # Map country columns from header row.
-            for i in range(1, min(len(headers), len(values))):
-                col = headers[i]
-                key = re.sub(r"[^a-z0-9]+", "_", col.lower()).strip("_")
-                row[key] = values[i]
-
-            out.append(row)
+    missing_labels = EXPECTED_TABLE_TYPES - seen_labels
+    if missing_labels:
+        missing_text = ", ".join(sorted(missing_labels))
+        raise RuntimeError(f"{path}: missing expected employment tables: {missing_text}")
 
     return out
 
